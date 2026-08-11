@@ -1,0 +1,19 @@
+# Bağımlılıklar
+node_modules/
+**/node_modules/
+
+# Ortam değişkenleri (gizli bilgiler)
+.env
+**/.env
+
+# Next.js derleme çıktısı
+.next/
+**/.next/
+
+# Prisma üretilen dosyalar
+generated/
+**/generated/
+
+# Diğer
+.DS_Store
+*.log

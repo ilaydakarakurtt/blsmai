@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(TEACHER)
+  quizzes   Quiz[]
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  TEACHER
+  ADMIN
+}
+
+model Quiz {
+  id        String        @id @default(uuid())
+  title     String
+  ownerId   String
+  owner     User          @relation(fields: [ownerId], references: [id])
+  questions Question[]
+  sessions  GameSession[]
+  createdAt DateTime      @default(now())
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id])
+  text         String
+  options      String[]
+  correctIndex Int
+  timeLimitSec Int      @default(20)
+  points       Int      @default(1000)
+  order        Int
+}
+
+model GameSession {
+  id        String        @id @default(uuid())
+  code      String        @unique
+  quizId    String
+  quiz      Quiz          @relation(fields: [quizId], references: [id])
+  status    SessionStatus @default(LOBBY)
+  players   Player[]
+  createdAt DateTime      @default(now())
+}
+
+enum SessionStatus {
+  LOBBY
+  IN_PROGRESS
+  FINISHED
+}
+
+model Player {
+  id        String      @id @default(uuid())
+  sessionId String
+  session   GameSession @relation(fields: [sessionId], references: [id])
+  nickname  String
+  score     Int         @default(0)
+  answers   Answer[]
+}
+
+model Answer {
+  id             String  @id @default(uuid())
+  playerId       String
+  player         Player  @relation(fields: [playerId], references: [id])
+  questionId     String
+  selectedIndex  Int
+  correct        Boolean
+  responseTimeMs Int
+}
