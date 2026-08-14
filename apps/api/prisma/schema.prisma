@@ -13,28 +13,33 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(TEACHER)
-  quizzes   Quiz[]
-  createdAt DateTime @default(now())
+  id               String                 @id @default(uuid())
+  email            String                 @unique
+  password         String
+  name             String
+  role             Role                   @default(TEACHER)
+  quizzes          Quiz[]
+  ownedClassrooms  Classroom[]            @relation("ClassroomOwner")
+  joinedClassrooms Classroom[]            @relation("ClassroomStudents")
+  submissions      AssignmentSubmission[]
+  createdAt        DateTime               @default(now())
 }
 
 enum Role {
   TEACHER
   ADMIN
+  STUDENT
 }
 
 model Quiz {
-  id        String        @id @default(uuid())
-  title     String
-  ownerId   String
-  owner     User          @relation(fields: [ownerId], references: [id])
-  questions Question[]
-  sessions  GameSession[]
-  createdAt DateTime      @default(now())
+  id          String        @id @default(uuid())
+  title       String
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  questions   Question[]
+  sessions    GameSession[]
+  assignments Assignment[]
+  createdAt   DateTime      @default(now())
 }
 
 model Question {
@@ -82,4 +87,48 @@ model Answer {
   selectedIndex  Int
   correct        Boolean
   responseTimeMs Int
+}
+
+model Classroom {
+  id          String       @id @default(uuid())
+  name        String
+  code        String       @unique
+  ownerId     String
+  owner       User         @relation("ClassroomOwner", fields: [ownerId], references: [id])
+  students    User[]       @relation("ClassroomStudents")
+  assignments Assignment[]
+  createdAt   DateTime     @default(now())
+}
+
+model Assignment {
+  id          String                 @id @default(uuid())
+  quizId      String
+  quiz        Quiz                   @relation(fields: [quizId], references: [id])
+  classroomId String
+  classroom   Classroom              @relation(fields: [classroomId], references: [id])
+  dueDate     DateTime?
+  createdAt   DateTime               @default(now())
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String             @id @default(uuid())
+  assignmentId String
+  assignment   Assignment         @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      User               @relation(fields: [studentId], references: [id])
+  score        Int                @default(0)
+  completedAt  DateTime?
+  answers      AssignmentAnswer[]
+
+  @@unique([assignmentId, studentId])
+}
+
+model AssignmentAnswer {
+  id            String               @id @default(uuid())
+  submissionId  String
+  submission    AssignmentSubmission @relation(fields: [submissionId], references: [id])
+  questionId    String
+  selectedIndex Int
+  correct       Boolean
 }

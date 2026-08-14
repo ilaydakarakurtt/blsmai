@@ -53,3 +53,60 @@ gameRouter.get("/sessions/:code", async (req, res) => {
   if (!session) return res.status(404).json({ error: "Oturum bulunamadı" });
   res.json(session);
 });
+
+// Bir quiz'in geçmiş oyun oturumlarını listele
+gameRouter.get("/sessions/quiz/:quizId", requireAuth, async (req: AuthRequest, res) => {
+  const quiz = await prisma.quiz.findFirst({
+    where: { id: req.params.quizId as string, ownerId: req.userId },
+  });
+  if (!quiz) return res.status(404).json({ error: "Quiz bulunamadı" });
+
+  const sessions = await prisma.gameSession.findMany({
+    where: { quizId: quiz.id },
+    include: { players: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  res.json(
+    sessions.map((s) => ({
+      id: s.id,
+      code: s.code,
+      status: s.status,
+      createdAt: s.createdAt,
+      playerCount: s.players.length,
+    }))
+  );
+});
+
+// Bir oturumun detaylı sonucunu getir (skor tablosu)
+gameRouter.get("/sessions/id/:sessionId/results", requireAuth, async (req: AuthRequest, res) => {
+  const session = await prisma.gameSession.findUnique({
+    where: { id: req.params.sessionId as string },
+    include: {
+      quiz: true,
+      players: {
+        orderBy: { score: "desc" },
+        include: { answers: true },
+      },
+    },
+  });
+
+  if (!session) return res.status(404).json({ error: "Oturum bulunamadı" });
+  if (session.quiz.ownerId !== req.userId) {
+    return res.status(403).json({ error: "Bu oturuma erişim yetkin yok" });
+  }
+
+  res.json({
+    id: session.id,
+    code: session.code,
+    quizTitle: session.quiz.title,
+    createdAt: session.createdAt,
+    players: session.players.map((p) => ({
+      id: p.id,
+      nickname: p.nickname,
+      score: p.score,
+      correctCount: p.answers.filter((a) => a.correct).length,
+      totalAnswers: p.answers.length,
+    })),
+  });
+});

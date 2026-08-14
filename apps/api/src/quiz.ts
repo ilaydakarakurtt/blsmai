@@ -35,7 +35,7 @@ quizRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
 // Tek bir quiz detayı (sorularla birlikte)
 quizRouter.get("/:id", requireAuth, async (req: AuthRequest, res) => {
   const quiz = await prisma.quiz.findFirst({
-    where: { id: req.params.id, ownerId: req.userId },
+    where: { id: req.params.id as string, ownerId: req.userId },
     include: { questions: { orderBy: { order: "asc" } } },
   });
   if (!quiz) return res.status(404).json({ error: "Quiz bulunamadı" });
@@ -46,7 +46,7 @@ quizRouter.get("/:id", requireAuth, async (req: AuthRequest, res) => {
 quizRouter.post("/:id/questions", requireAuth, async (req: AuthRequest, res) => {
   try {
     const quiz = await prisma.quiz.findFirst({
-      where: { id: req.params.id, ownerId: req.userId },
+      where: { id: req.params.id as string, ownerId: req.userId },
     });
     if (!quiz) return res.status(404).json({ error: "Quiz bulunamadı" });
 
@@ -70,4 +70,56 @@ quizRouter.post("/:id/questions", requireAuth, async (req: AuthRequest, res) => 
   } catch (e: any) {
     res.status(400).json({ error: e.message });
   }
+});
+// Quiz için istatistikler (canlı oyun + ödev cevapları birleştirilmiş)
+quizRouter.get("/:id/analytics", requireAuth, async (req: AuthRequest, res) => {
+  const quiz = await prisma.quiz.findFirst({
+    where: { id: req.params.id as string, ownerId: req.userId },
+    include: { questions: { orderBy: { order: "asc" } } },
+  });
+  if (!quiz) return res.status(404).json({ error: "Quiz bulunamadı" });
+
+const questionIds = quiz.questions.map((q) => q.id);
+
+  // Canlı oyunlardaki cevaplar
+  const liveAnswers = await prisma.answer.findMany({
+    where: { questionId: { in: questionIds } },
+  });
+
+  // Ödevlerdeki cevaplar
+  const assignmentAnswers = await prisma.assignmentAnswer.findMany({
+    where: { questionId: { in: questionIds } },
+  });
+
+  const totalLiveSessions = await prisma.gameSession.count({
+    where: { quizId: quiz.id, status: "FINISHED" },
+  });
+
+  const allPlayers = await prisma.player.findMany({
+    where: { session: { quizId: quiz.id, status: "FINISHED" } },
+  });
+  const avgScore =
+    allPlayers.length > 0
+      ? Math.round(allPlayers.reduce((sum, p) => sum + p.score, 0) / allPlayers.length)
+      : 0;
+
+  const questionStats = quiz.questions.map((q) => {
+    const liveForQ = liveAnswers.filter((a) => a.questionId === q.id);
+    const assignForQ = assignmentAnswers.filter((a) => a.questionId === q.id);
+    const total = liveForQ.length + assignForQ.length;
+    const correct =
+      liveForQ.filter((a) => a.correct).length + assignForQ.filter((a) => a.correct).length;
+
+    return {
+      questionText: q.text,
+      correctRate: total > 0 ? Math.round((correct / total) * 100) : 0,
+      totalAnswers: total,
+    };
+  });
+
+  res.json({
+    totalLiveSessions,
+    avgScore,
+    questionStats,
+  });
 });

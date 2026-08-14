@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { API_URL } from "@/lib/api";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface Question {
   id: string;
@@ -18,6 +26,34 @@ interface Quiz {
   questions: Question[];
 }
 
+interface GameSessionSummary {
+  id: string;
+  code: string;
+  status: string;
+  createdAt: string;
+  playerCount: number;
+}
+
+interface AssignmentSummary {
+  id: string;
+  classroomName: string;
+  dueDate: string | null;
+  createdAt: string;
+  submissionCount: number;
+}
+
+interface QuestionStat {
+  questionText: string;
+  correctRate: number;
+  totalAnswers: number;
+}
+
+interface Analytics {
+  totalLiveSessions: number;
+  avgScore: number;
+  questionStats: QuestionStat[];
+}
+
 export default function QuizDetailPage() {
   const { quizId } = useParams<{ quizId: string }>();
   const router = useRouter();
@@ -28,6 +64,16 @@ export default function QuizDetailPage() {
   const [text, setText] = useState("");
   const [options, setOptions] = useState(["", "", "", ""]);
   const [correctIndex, setCorrectIndex] = useState(0);
+
+  const [sessions, setSessions] = useState<GameSessionSummary[]>([]);
+
+  const [classrooms, setClassrooms] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+  const [selectedClassroom, setSelectedClassroom] = useState("");
+  const [assignMessage, setAssignMessage] = useState("");
+  const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
   function getToken() {
     return localStorage.getItem("token");
@@ -54,9 +100,89 @@ export default function QuizDetailPage() {
     setLoading(false);
   }
 
+  async function fetchSessions() {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_URL}/api/game/sessions/quiz/${quizId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSessions(data);
+    }
+  }
+  async function fetchClassrooms() {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_URL}/api/classrooms`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setClassrooms(data);
+    }
+  }
+  async function fetchAssignments() {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_URL}/api/assignments/quiz/${quizId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAssignments(data);
+    }
+  }
+  async function fetchAnalytics() {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_URL}/api/quizzes/${quizId}/analytics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAnalytics(data);
+    }
+  }
+
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    setAssignMessage("");
+    const token = getToken();
+
+    const res = await fetch(`${API_URL}/api/assignments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ quizId, classroomId: selectedClassroom }),
+    });
+
+    if (res.ok) {
+      setAssignMessage("Ödev başarıyla verildi!");
+      setSelectedClassroom("");
+      fetchAssignments();
+    } else {
+      setAssignMessage("Bir hata oluştu.");
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchQuiz();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSessions();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchClassrooms();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAssignments();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAnalytics();
   }, [quizId]);
 
   async function handleAddQuestion(e: React.FormEvent) {
@@ -101,12 +227,126 @@ export default function QuizDetailPage() {
 
       <h1 className="text-2xl font-bold">{quiz.title}</h1>
 
+      {analytics && analytics.totalLiveSessions > 0 && (
+        <div className="border rounded-lg p-4 space-y-4">
+          <div className="flex gap-8">
+            <div>
+              <p className="text-sm text-gray-500">Toplam Oyun</p>
+              <p className="text-2xl font-bold">
+                {analytics.totalLiveSessions}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Ortalama Skor</p>
+              <p className="text-2xl font-bold">{analytics.avgScore}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2">Soru Başarı Oranları</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={analytics.questionStats}>
+                <XAxis dataKey="questionText" tick={false} />
+                <YAxis domain={[0, 100]} unit="%" />
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Bar
+                  dataKey="correctRate"
+                  fill="#16a34a"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <Link
         href={`/dashboard/${quizId}/play`}
         className="inline-block bg-green-600 text-white rounded px-4 py-2"
       >
         Oyunu Başlat
       </Link>
+
+      {sessions.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-2">Geçmiş Oyunlar</h2>
+          <ul className="space-y-2">
+            {sessions.map((s) => (
+              <li key={s.id}>
+                <Link
+                  href={`/dashboard/${quizId}/results/${s.id}`}
+                  className="border rounded p-3 flex justify-between items-center hover:bg-gray-50 block"
+                >
+                  <span>{new Date(s.createdAt).toLocaleString("tr-TR")}</span>
+                  <span className="text-sm text-gray-500">
+                    {s.playerCount} katılımcı ·{" "}
+                    {s.status === "FINISHED"
+                      ? "Bitti"
+                      : s.status === "IN_PROGRESS"
+                        ? "Devam ediyor"
+                        : "Bekliyor"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="border rounded-lg p-4 space-y-3">
+        <h2 className="font-semibold">Ödev Olarak Ver</h2>
+        {classrooms.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            Önce bir sınıf oluşturman gerekiyor.
+          </p>
+        ) : (
+          <form onSubmit={handleAssign} className="flex gap-2">
+            <select
+              value={selectedClassroom}
+              onChange={(e) => setSelectedClassroom(e.target.value)}
+              className="flex-1 border rounded px-3 py-2"
+              required
+            >
+              <option value="">Sınıf seç...</option>
+              {classrooms.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="bg-black text-white rounded px-4 py-2"
+            >
+              Ödev Ver
+            </button>
+          </form>
+        )}
+        {assignMessage && (
+          <p className="text-sm text-green-600">{assignMessage}</p>
+        )}
+      </div>
+
+      {assignments.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-2">Verilen Ödevler</h2>
+          <ul className="space-y-2">
+            {assignments.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/dashboard/${quizId}/assignments/${a.id}`}
+                  className="border rounded p-3 flex justify-between items-center hover:bg-gray-50 block"
+                >
+                  <span>{a.classroomName}</span>
+                  <span className="text-sm text-gray-500">
+                    {a.submissionCount} teslim ·{" "}
+                    {new Date(a.createdAt).toLocaleDateString("tr-TR")}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {quiz.questions.map((q, i) => (
