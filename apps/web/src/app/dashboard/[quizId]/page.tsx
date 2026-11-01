@@ -222,7 +222,7 @@ export default function QuizDetailPage() {
   return (
     <div className="max-w-2xl mx-auto p-8 space-y-6">
       <Link href="/dashboard" className="text-sm text-gray-500 underline">
-        ← Quizlerime dön
+        ← Geri
       </Link>
 
       <h1 className="text-2xl font-bold">{quiz.title}</h1>

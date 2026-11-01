@@ -47,8 +47,8 @@ export default function StudentLayout({
   const navItems = [
     { href: "/student/classrooms", label: "Sınıflarım" },
     { href: "/student/assignments", label: "Ödevlerim" },
+    { href: "/student/brain-exercises", label: "Beyin Egzersizleri" },
   ];
-
   return (
     <div className="min-h-screen flex">
       <aside className="w-64 border-r p-4 flex flex-col justify-between">

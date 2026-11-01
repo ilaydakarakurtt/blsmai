@@ -13,16 +13,18 @@ datasource db {
 }
 
 model User {
-  id               String                 @id @default(uuid())
-  email            String                 @unique
-  password         String
-  name             String
-  role             Role                   @default(TEACHER)
-  quizzes          Quiz[]
-  ownedClassrooms  Classroom[]            @relation("ClassroomOwner")
-  joinedClassrooms Classroom[]            @relation("ClassroomStudents")
-  submissions      AssignmentSubmission[]
-  createdAt        DateTime               @default(now())
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  password              String
+  name                  String
+  role                  Role                   @default(TEACHER)
+  quizzes               Quiz[]
+  ownedClassrooms       Classroom[]            @relation("ClassroomOwner")
+  joinedClassrooms      Classroom[]            @relation("ClassroomStudents")
+  submissions           AssignmentSubmission[]
+  smartBooks            SmartBook[]
+  createdAt             DateTime               @default(now())
+  brainExerciseSessions BrainExerciseSession[]
 }
 
 enum Role {
@@ -131,4 +133,41 @@ model AssignmentAnswer {
   questionId    String
   selectedIndex Int
   correct       Boolean
+}
+
+enum BookLevel {
+  PRE_A1
+  A1
+  A2
+  B1
+  B2
+}
+
+model SmartBook {
+  id          String    @id @default(uuid())
+  title       String
+  level       BookLevel
+  content     String // hikaye metni
+  coverPrompt String // görsel üretimi için kullanılacak açıklama (şimdilik metin, ileride görsele çevirebiliriz)
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+enum ExerciseCategory {
+  MEMORY
+  LOGIC
+  MATH
+  ATTENTION
+}
+
+model BrainExerciseSession {
+  id             String           @id @default(uuid())
+  studentId      String
+  student        User             @relation(fields: [studentId], references: [id])
+  category       ExerciseCategory
+  score          Int
+  correctCount   Int
+  totalQuestions Int
+  createdAt      DateTime         @default(now())
 }

@@ -46,7 +46,7 @@ export default function TeacherAssignmentsPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-8 space-y-6">
-      <h1 className="text-2xl font-bold">Verilen Odevler</h1>
+      <h1 className="text-2xl font-bold">Verilen Ödevler</h1>
 
       <ul className="space-y-2">
         {assignments.map((a) => (

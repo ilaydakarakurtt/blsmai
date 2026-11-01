@@ -9,6 +9,7 @@ import { gameRouter } from "./game";
 import { registerGameSocket } from "./gameSocket";
 import { classroomRouter } from "./classroom";
 import { assignmentRouter } from "./assignment";
+import { brainExerciseRouter } from "./brainExercise";
 
 const app = express();
 app.use(cors());
@@ -55,6 +56,7 @@ app.use("/api/quizzes", quizRouter);
 app.use("/api/game", gameRouter);
 app.use("/api/classrooms", classroomRouter);
 app.use("/api/assignments", assignmentRouter);
+app.use("/api/brain-exercises", brainExerciseRouter);
 
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {

@@ -59,7 +59,7 @@ export default function ClassroomDetailPage() {
         href="/dashboard/classrooms"
         className="text-sm text-gray-500 underline"
       >
-        ← Sınıflarıma dön
+        ← Geri
       </Link>
 
       <div>
